@@ -26,7 +26,11 @@ class ERC20TokenTracker(Web3Portal):
             etime=pd.Timestamp.utcnow(),
             filter_params=dict(
                 address=addr,
-                topics=["0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0", "0x0000000000000000000000000000000000000000000000000000000000000000"]),
+                topics=[
+                    #"0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
+                    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                    "0x0000000000000000000000000000000000000000000000000000000000000000",
+                ]),
             log_processor=lambda x:x
         ).iloc[0].to_dict()
         creation_block_number = int(creation_log["blockNumber"])
@@ -41,8 +45,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("addr", type=str)
     parser.add_argument("--restart", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
+    #log.getLogger().setLevel(log.DEBUG)
 
     #token_addr = "0x1e8ee2fa31bfe35451c1310130029dd37695c23b"
     token_addr = args.addr
@@ -77,23 +83,27 @@ if __name__ == "__main__":
     decimals0 = p.get_decimals(addr=token0)
     decimals1 = p.get_decimals(addr=token1)
 
-    df["args_amount0"] = df["args_amount0In"] - df["args_amount0Out"]
-    df["args_amount1"] = df["args_amount1In"] - df["args_amount1Out"]
+    df["args_amount0"] = df["args_amount0In"] / (10**decimals0) - df["args_amount0Out"] / (10**decimals0)
+    df["args_amount1"] = df["args_amount1In"] / (10**decimals1) - df["args_amount1Out"] / (10**decimals1)
     if token_addr == token0:
-        df["token_amount"] = df["args_amount0"] / (10**decimals0)
-        df["weth_amount"] = df["args_amount1"] / (10**decimals1)
+        df["token_amount"] = df["args_amount0"]
+        df["weth_amount"] = df["args_amount1"]
     elif token_addr == token1:
-        df["token_amount"] = df["args_amount0"] / (10**decimals0)
-        df["weth_amount"] = df["args_amount1"] / (10**decimals1)
+        df["token_amount"] = df["args_amount1"]
+        df["weth_amount"] = df["args_amount2"]
     else:
         raise ValueError(f"{token_addr} is not found in pair ({token0}, {token1})")
     df["side"] = np.where(df["token_amount"] < 1, 1, -1)
     df["timestamp_est"] = df["timestamp"].dt.tz_convert("US/Eastern")
-    df["price_weth"] = df["weth_amount"] / df["token_amount"]
+    df["price_weth"] = -df["weth_amount"] / df["token_amount"] # remember negative sign
     df["trader"] = df["args_to"]
 
-    df_summary = df[["trader", "token_amount", "weth_amount", "side", "price_weth", "timestamp", "timestamp_est", "transactionHash"]].copy()
+    if args.debug is True:
+        output_vars = df.columns
+    else:
+        output_vars = ["trader", "token_amount", "weth_amount", "side", "price_weth", "timestamp", "timestamp_est", "transactionHash"]
 
+    df_summary = df[output_vars].copy()
     df_total = pd.concat([
         df0,
         df_summary,
