@@ -10,10 +10,8 @@ import pandas as pd
 
 load_figure_template('DARKLY')
 
-df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv')
-
 data_root_dir = os.path.expandvars("$HOME/vega/data/")
-token_addr_list = [_.replace(".csv", "") for _ in os.listdir("/Users/zche/vega/data/token/swap/")]
+token_addr_list = [_.replace(".csv", "") for _ in os.listdir(f"{data_root_dir}/token/swap/")]
 
 app = Dash(
     __name__,
@@ -21,7 +19,7 @@ app = Dash(
 )
 
 app.layout = html.Div([
-    html.H1(children='COIN DASHBOARD', style={'textAlign':'center'}),
+    html.H1(children='Dashboard', style={'textAlign':'center'}),
     dcc.Dropdown(token_addr_list, token_addr_list[0], id='dropdown-selection'),
     dcc.Graph(id='graph-content', responsive=True)
 ], style={"margin": "10% 10% 10% 10%"})
@@ -55,9 +53,9 @@ def update_graph(token_addr: str) -> go.Figure:
     fig.update_layout(
         margin=dict(l=20, r=20, t=20, b=20),
         width=1000, height=618,
-        template="plotly_dark",
         yaxis={'tickformat': 'g2'},
         xaxis_rangeslider_visible=False,
+        hovermode='x unified',
     )
     fig.add_hline(y=0, line_width=3, line_dash="dash", line_color="green", opacity=0.03)
     return fig
