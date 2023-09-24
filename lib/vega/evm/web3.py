@@ -54,7 +54,7 @@ class EventListener:
         }
         _filter_params.update(filter_params)
             
-        log.info(f"filtering logs {_filter_params} . (number of blocks: {to_block - from_block + 1})")
+        log.info(f"filtering logs {_filter_params}. (number of blocks: {to_block - from_block + 1})")
         raw_logs = self.web3.eth.get_logs(_filter_params)
         log.info(f"number of logs: {len(raw_logs)}")
         from .utils import flatten_dict
@@ -70,8 +70,6 @@ class EventListener:
         """
         Get logs for an event between [stime, etime).
         """
-        from_block = self.scan.get_block_number_by_timestamp(to_int(stime, "s"))
-        to_block = self.scan.get_block_number_by_timestamp(to_int(etime, "s")) - 1
         return self.get_logs(
             stime=stime,
             etime=etime,
