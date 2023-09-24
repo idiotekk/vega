@@ -3,6 +3,7 @@ import sys
 import plotly.graph_objects as go
 from dash import Dash
 from dash import html, dcc, callback, Output, Input
+import dash_table
 import plotly.express as px
 import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
