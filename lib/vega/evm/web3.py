@@ -59,6 +59,8 @@ class Web3Portal:
         log.info(f"filtering logs {_filter_params}. (number of blocks: {to_block - from_block + 1})")
         raw_logs = self.web3.eth.get_logs(_filter_params)
         log.info(f"number of logs: {len(raw_logs)}")
+        if len(raw_logs) == 0:
+            return pd.DataFrame()
         from .utils import flatten_dict
         processed_logs = [flatten_dict(dict(log_processor(raw_log))) for raw_log in raw_logs]
         df = pd.DataFrame(processed_logs)
@@ -120,3 +122,12 @@ class Web3Portal:
                 return stime
             else:
                 return (etime - stime) / (max_block - min_block) * (block_number - min_block) + stime
+
+    def get_contract(self, *, addr: str, type: typing.Optional[str]=None):
+
+        if type is None:
+            abi = self.get_abi(addr=addr)
+        else:
+            abi = self.get_abi(type=type)
+        contract = self.web3.eth.contract(address=addr, abi=abi)
+        return contract
