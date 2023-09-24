@@ -1,0 +1,31 @@
+# Bazel build output directories
+/bazel-*
+
+# Python build output directories
+/bazel-out/
+/bazel-bin/
+
+# IDE specific files
+.idea/
+*.iml
+*.ipr
+*.iws
+*.bak
+*.log
+*.swp
+
+# Compiled Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Miscellaneous
+.DS_Store
+.bazelci/
+tmp/
+test.log
+
+.private
+venv
+log
+test
