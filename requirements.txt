@@ -18,3 +18,4 @@ dash-table
 # testing
 ipython
 jupyterlab
+tqdm

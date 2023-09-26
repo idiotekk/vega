@@ -104,6 +104,7 @@ class Web3Portal:
         if addr is not None:
             return self.scan.get(module="contract", action="getabi", address=addr)
         elif type is not None:
+            assert type in _ABI_MAP.keys(), f"{type} not found in {list(_ABI_MAP.keys())}"
             return json.loads(_ABI_MAP[type])
 
     def get_timestamp_from_block_number(self, block_number: typing.Union[pd.Series, int]) -> typing.Union[pd.Series, int]:

@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     #token_addr = "0x1e8ee2fa31bfe35451c1310130029dd37695c23b"
     token_addr = args.addr
-    file_path = os.path.expandvars(f"$HOME/vega/data/token/swap/{token_addr}.csv")
+    file_path = os.path.expandvars(f"$HOME/vega/data/wallet/{token_addr}.csv")
     p = ERC20TokenTracker()
     p.init()
     token_addr = p.web3.to_checksum_address(token_addr)
