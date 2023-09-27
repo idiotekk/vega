@@ -24,6 +24,7 @@ __pycache__/
 .bazelci/
 tmp/
 test.log
+_test*
 .ipynb_checkpoints
 
 .private
