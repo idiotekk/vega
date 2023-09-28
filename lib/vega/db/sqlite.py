@@ -19,10 +19,7 @@ class SQLiteDB:
    
     def connect(self, path: str, **kw):
         self._path = path
-        try:
-            self._con = sqlite3.connect(path, **kw)
-        except Exception as e:
-            log.error(f"failed to open {path}, error: {e}")
+        self._con = sqlite3.connect(path, **kw)
 
     @property
     def con(self) -> sqlite3.Connection:

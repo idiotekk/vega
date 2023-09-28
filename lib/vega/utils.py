@@ -25,14 +25,15 @@ def apply_range(*,
         while batch_size >= min_batch_size:
             try:
                 batch_end = min(batch_start + batch_size, end)
-                log.info(f"apply {func.__name__} for sub-range {[batch_start, batch_end]}")
+                log.info(f"applying {func.__name__} for sub-range {[batch_start, batch_end]}")
                 res.append(func(batch_start, batch_end))
                 break
-            except:
+            except Exception as e:
+                log.error(f"failed with error: {e}")
                 batch_size /= 2
                 if batch_size >= min_batch_size:
                     log.info(f"retrying with smaller batch_size = {batch_size}")
                 else:
-                    raise Exception(f"failed with min_batch_size at batch_start = {batch_start}")
+                    raise Exception(f"failed with min_batch_size {min_batch_size} at batch_start = {batch_start}")
         batch_start = batch_end
     return res
