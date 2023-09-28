@@ -8,9 +8,9 @@ from . import log
 
 
 __all__ = [
-    "save_df",
     "load_json",
     "dump_json",
+    "make_sure_parent_dir_exists",
 ]
 
 
@@ -22,17 +22,6 @@ def make_sure_parent_dir_exists(path: Union[str, Path]) -> Union[str, Path]:
         log.info(f"creating {parent_dir}")
         parent_dir.mkdir(parents=True, exist_ok=True)
     return path
-
-
-def save_df(df: pd.DataFrame,
-            file: Union[str, Path],
-            **kw) -> str:
-    """ Write dataframe to csv, creating parent dir if not exists.
-    """
-    file = make_sure_parent_dir_exists(file)
-    df.to_csv(file, **kw)
-    log.info(f"df shape: {df.shape}, written to: {file}")
-    return file
 
 
 def load_json(f_: Union[Path, str]) -> Any:
