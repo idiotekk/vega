@@ -2,7 +2,7 @@ import os
 import typing
 import json
 from web3 import Web3
-from web3.contract.contract import ContractEvent # for typing
+from web3.contract.contract import ContractEvent, Contract # for typing
 from functools import cache
 import pandas as pd
 
@@ -124,7 +124,7 @@ class Web3Portal:
             else:
                 return (etime - stime) / (max_block - min_block) * (block_number - min_block) + stime
 
-    def get_contract(self, *, addr: str, type: typing.Optional[str]=None):
+    def get_contract(self, *, addr: str, type: typing.Optional[str]=None) -> Contract:
 
         if type is None:
             abi = self.get_abi(addr=addr)
