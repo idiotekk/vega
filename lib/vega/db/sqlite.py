@@ -20,6 +20,7 @@ class SQLiteDB:
     def connect(self, path: str, **kw):
         self._path = path
         self._con = sqlite3.connect(path, **kw)
+        log.info(f"connected to {path}")
 
     @property
     def con(self) -> sqlite3.Connection:

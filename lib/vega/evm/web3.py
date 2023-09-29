@@ -149,7 +149,7 @@ class ERC20TokenTracker(Web3Portal):
         return self.uniswap_v2_factory().functions["getPair"](lookup("addr")["WETH"], addr).call()
 
     @lru_cache(maxsize=None)
-    def get_token_creation_time(self, addr: str) -> pd.Timestamp:
+    def get_token_creation_log(self, addr: str) -> pd.Timestamp:
         creation_log = self.get_logs(
             stime=pd.to_datetime("20180101").tz_localize("UTC"),
             etime=pd.Timestamp.utcnow(),
@@ -162,22 +162,27 @@ class ERC20TokenTracker(Web3Portal):
             log_processor=lambda x:x,
             parse_timestamp=False,
         ).iloc[0].to_dict()
-        creation_block_number = int(creation_log["blockNumber"])
-        creation_timestamp = self.get_timestamp_from_block_number(block_number=creation_block_number)
-        log.info(f"contract {addr} was created at block = {creation_block_number}, {creation_timestamp}")
-        return creation_block_number, creation_timestamp
+        print(creation_log)
+        return creation_log
 
     def gather_token_info(self, addr: str) -> dict:
 
         c = self.get_contract(addr=addr, type="erc20")
-        token_info = {}
+        token_info = {
+            "addr": addr,
+        }
         for property_name in [_["name"] for _ in c.abi if _["type"] == "function" and _["stateMutability"] == "view" and not _["inputs"]]:
             token_info[property_name] = c.functions[property_name]().call()
-        token_info["creationBlockNumber"], token_info["creationTime"] = self.get_token_creation_time(addr)
+        creation_log = self.get_token_creation_log(addr)
+        token_info["creationBlockNumber"] = int(creation_log["blockNumber"])
+        token_info["creationTime"] = self.get_timestamp_from_block_number(block_number=int(creation_log["blockNumber"]))
+        token_info["deployer"] = self.web3.eth.get_transaction(creation_log["transactionHash"])["from"]
         try:
             token_info["WETHPoolV2"] = self.get_univswap_v2_pair(addr)
-            _, token_info["WETHPoolV2CreationTime"] = self.get_token_creation_time(token_info["WETHPoolV2"])
-        except:
+            pool_creation_log = self.get_token_creation_log(token_info["WETHPoolV2"])
+            token_info["WETHPoolV2CreationTime"] = self.get_timestamp_from_block_number(block_number=int(pool_creation_log["blockNumber"]))
+        except Exception as e:
+            log.info(f"failed to find WETH Pool V2. Error: {e}")
             token_info["WETHPoolV2"] = ""
             token_info["WETHPoolV2CreationTime"] = "" # note that this traslates to NaT by pd.to_datetime
         return token_info
