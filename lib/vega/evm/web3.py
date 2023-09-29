@@ -162,10 +162,8 @@ class ERC20TokenTracker(Web3Portal):
             log_processor=lambda x:x,
             parse_timestamp=False,
         )
-        if len(creation_log) > 0:
-            return creation_log.iloc[0].to_dict()
-        else:
-            return {}
+        assert creation_log, "can't find token creation event"
+        return creation_log.iloc[0].to_dict()
 
     def gather_token_info(self, addr: str) -> dict:
 
@@ -174,12 +172,21 @@ class ERC20TokenTracker(Web3Portal):
             "addr": addr,
         }
         for property_name in [_["name"] for _ in c.abi if _["type"] == "function" and _["stateMutability"] == "view" and not _["inputs"]]:
-            token_info[property_name] = c.functions[property_name]().call()
-        creation_log = self.get_token_creation_log(addr)
-        if creation_log:
-            token_info["creationBlockNumber"] = int(creation_log["blockNumber"])
-            token_info["creationTime"] = self.get_timestamp_from_block_number(block_number=int(creation_log["blockNumber"]))
-            token_info["deployer"] = self.web3.eth.get_transaction(creation_log["transactionHash"])["from"]
+            try:
+                token_info[property_name] = c.functions[property_name]().call()
+            except Exception as e:
+                log.info(f"failed to get {property_name} for {addr}, {e}")
+
+        # i hate so many try excepts but deployers just don't follow standards
+        try:
+            creation_log = self.get_token_creation_log(addr)
+            if creation_log:
+                token_info["creationBlockNumber"] = int(creation_log["blockNumber"])
+                token_info["creationTime"] = self.get_timestamp_from_block_number(block_number=int(creation_log["blockNumber"]))
+                token_info["deployer"] = self.web3.eth.get_transaction(creation_log["transactionHash"])["from"]
+        except Exception as e:
+            log.info(f"failed to get creation event. error: {e}")
+
         try:
             token_info["WETHPoolV2"] = self.get_univswap_v2_pair(addr)
             pool_creation_log = self.get_token_creation_log(token_info["WETHPoolV2"])
@@ -188,4 +195,5 @@ class ERC20TokenTracker(Web3Portal):
             log.info(f"failed to find WETH Pool V2. Error: {e}")
             token_info["WETHPoolV2"] = ""
             token_info["WETHPoolV2CreationTime"] = "" # note that this traslates to NaT by pd.to_datetime
+
         return token_info
