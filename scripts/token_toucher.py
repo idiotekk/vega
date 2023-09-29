@@ -54,4 +54,4 @@ if __name__ == "__main__":
         func=download_pair_creation_logs,
         start=stime,
         end=etime,
-        max_batch_size=pd.Timedelta("1h"))
+        max_batch_size=pd.Timedelta("12h"))
