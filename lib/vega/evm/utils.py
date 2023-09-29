@@ -1,6 +1,9 @@
 import typing
 from hexbytes import HexBytes
 import pandas as pd
+from functools import lru_cache
+
+from ..io import rel_path, load_json
 
 
 __all__ = [
@@ -8,6 +11,8 @@ __all__ = [
     "utcnow",
     "to_utc",
     "to_int",
+    "lookup",
+    "addr_to_topic",
 ]
 
 
@@ -62,3 +67,15 @@ def to_int(t: pd.Timestamp, unit="ns") -> int:
         return ns // int(1e9)
     else:
         raise ValueError(f"unsupported unit {unit}")
+
+
+@lru_cache(maxsize=None)
+def lookup(*path):
+    """Get json object under ./const/ .
+    """
+    return load_json(rel_path(__file__, "const", *path) + ".json")
+
+
+@lru_cache(maxsize=None)
+def addr_to_topic(addr):
+    return addr.replace("0x", "0x" + "0"*24)

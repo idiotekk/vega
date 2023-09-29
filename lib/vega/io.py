@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 from glob import glob
 from pathlib import Path
-from typing import Union, Sequence, Any
+from typing import Union, Sequence, Any, Tuple
 from . import log
 
 
@@ -12,6 +12,15 @@ __all__ = [
     "dump_json",
     "make_sure_parent_dir_exists",
 ]
+
+
+def rel_path(this_file, *path: Tuple[str]) -> str:
+    """ Return the abs path give the relative path to *this* file.
+    """
+    res = Path(this_file).parent.absolute()
+    for _ in path:
+        res = res / _
+    return str(res)
 
 
 def make_sure_parent_dir_exists(path: Union[str, Path]) -> Union[str, Path]:

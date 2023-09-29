@@ -3,12 +3,12 @@ import typing
 import json
 from web3 import Web3
 from web3.contract.contract import ContractEvent, Contract # for typing
-from functools import cache
+from functools import lru_cache
 import pandas as pd
 
 from . import log
 from .etherscan import Etherscan
-from .utils import to_int
+from .utils import to_int, lookup, addr_to_topic
 
 
 
@@ -43,6 +43,7 @@ class Web3Portal:
                  etime: pd.Timestamp,
                  filter_params: dict,
                  log_processor: typing.Callable,
+                 parse_timestamp: bool=False,
                  ) -> pd.DataFrame:
         """
         Filter logs by `filter_params` between [stime, etime).
@@ -64,7 +65,8 @@ class Web3Portal:
         from .utils import flatten_dict
         processed_logs = [flatten_dict(dict(log_processor(raw_log))) for raw_log in raw_logs]
         df = pd.DataFrame(processed_logs)
-        df["timestamp"] = self.get_timestamp_from_block_number(df["blockNumber"])
+        if parse_timestamp:
+            df["timestamp"] = self.get_timestamp_from_block_number(df["blockNumber"])
         return df
 
     def get_event_logs(self, *,
@@ -81,32 +83,32 @@ class Web3Portal:
             filter_params=event._get_event_filter_params(event.abi),
             log_processor=event.process_log)
     
+    @lru_cache(maxsize=None)
     def get_block_number_by_timestamp(self, ts: pd.Timestamp) -> int:
         if isinstance(ts, pd.Timestamp):
             return self.scan.get_block_number_by_timestamp(to_int(ts, "s"))
         else:
             raise TypeError(f"unsupported input type {ts} type = {type(ts)}")
 
-    @cache
+    @lru_cache(maxsize=None)
     def get_decimals(self, addr: str) -> int:
         """ Get the decimals of an ERC20 token.
         """
         c = self.web3.eth.contract(address=addr, abi=self.get_abi(type="ERC20"))
         return c.functions["decimals"]().call()
 
-    @cache
+    @lru_cache(maxsize=None)
     def get_abi(self, *, addr: typing.Optional[str]=None, type: typing.Optional[str]=None) -> list:
         """ Get abi from contract address.
         """
-        _ABI_MAP = {
-            "ERC20": """[{"constant": true, "inputs": [], "name": "name", "outputs": [{"name": "", "type": "string"}], "payable": false, "stateMutability": "view", "type": "function"}, {"constant": false, "inputs": [{"name": "_spender", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "approve", "outputs": [{"name": "", "type": "bool"}], "payable": false, "stateMutability": "nonpayable", "type": "function"}, {"constant": true, "inputs": [], "name": "totalSupply", "outputs": [{"name": "", "type": "uint256"}], "payable": false, "stateMutability": "view", "type": "function"}, {"constant": false, "inputs": [{"name": "_from", "type": "address"}, {"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "transferFrom", "outputs": [{"name": "", "type": "bool"}], "payable": false, "stateMutability": "nonpayable", "type": "function"}, {"constant": true, "inputs": [], "name": "decimals", "outputs": [{"name": "", "type": "uint8"}], "payable": false, "stateMutability": "view", "type": "function"}, {"constant": true, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "payable": false, "stateMutability": "view", "type": "function"}, {"constant": true, "inputs": [], "name": "symbol", "outputs": [{"name": "", "type": "string"}], "payable": false, "stateMutability": "view", "type": "function"}, {"constant": false, "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "payable": false, "stateMutability": "nonpayable", "type": "function"}, {"constant": true, "inputs": [{"name": "_owner", "type": "address"}, {"name": "_spender", "type": "address"}], "name": "allowance", "outputs": [{"name": "", "type": "uint256"}], "payable": false, "stateMutability": "view", "type": "function"}, {"payable": true, "stateMutability": "payable", "type": "fallback"}, {"anonymous": false, "inputs": [{"indexed": true, "name": "owner", "type": "address"}, {"indexed": true, "name": "spender", "type": "address"}, {"indexed": false, "name": "value", "type": "uint256"}], "name": "Approval", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": true, "name": "from", "type": "address"}, {"indexed": true, "name": "to", "type": "address"}, {"indexed": false, "name": "value", "type": "uint256"}], "name": "Transfer", "type": "event"}]"""
-        }
         if addr is not None:
             return self.scan.get(module="contract", action="getabi", address=addr)
         elif type is not None:
-            assert type in _ABI_MAP.keys(), f"{type} not found in {list(_ABI_MAP.keys())}"
-            return json.loads(_ABI_MAP[type])
+            from ..io import load_json, rel_path
+            abi = lookup("abi/erc20")
+            return abi
 
+    @lru_cache(maxsize=None)
     def get_timestamp_from_block_number(self, block_number: typing.Union[pd.Series, int]) -> typing.Union[pd.Series, int]:
 
         def block_number_to_ts(bn: int) -> pd.Timestamp:
@@ -124,6 +126,7 @@ class Web3Portal:
             else:
                 return (etime - stime) / (max_block - min_block) * (block_number - min_block) + stime
 
+    @lru_cache(maxsize=None)
     def get_contract(self, *, addr: str, type: typing.Optional[str]=None) -> Contract:
 
         if type is None:
@@ -131,4 +134,50 @@ class Web3Portal:
         else:
             abi = self.get_abi(type=type)
         contract = self.web3.eth.contract(address=addr, abi=abi)
+        log.info(f"constructed contract {addr}")
         return contract
+
+
+class ERC20TokenTracker(Web3Portal):
+
+    @lru_cache(maxsize=None)
+    def uniswap_v2_factory(self):
+        return self.get_contract(addr=lookup("addr")["UniswapV2Factory"])
+
+    @lru_cache(maxsize=None)
+    def get_univswap_v2_pair(self, addr) -> str:
+        return self.uniswap_v2_factory().functions["getPair"](lookup("addr")["WETH"], addr).call()
+
+    @lru_cache(maxsize=None)
+    def get_token_creation_time(self, addr: str) -> pd.Timestamp:
+        creation_log = self.get_logs(
+            stime=pd.to_datetime("20180101").tz_localize("UTC"),
+            etime=pd.Timestamp.utcnow(),
+            filter_params=dict(
+                address=addr,
+                topics=[
+                    lookup("topic")["ContractCreation"],
+                    addr_to_topic(lookup("addr")["NULL"]),
+                ]),
+            log_processor=lambda x:x,
+            parse_timestamp=False,
+        ).iloc[0].to_dict()
+        creation_block_number = int(creation_log["blockNumber"])
+        creation_timestamp = self.get_timestamp_from_block_number(block_number=creation_block_number)
+        log.info(f"contract {addr} was created at block = {creation_block_number}, {creation_timestamp}")
+        return creation_block_number, creation_timestamp
+
+    def gather_token_info(self, addr: str) -> dict:
+
+        c = self.get_contract(addr=addr, type="erc20")
+        token_info = {}
+        for property_name in [_["name"] for _ in c.abi if _["type"] == "function" and _["stateMutability"] == "view" and not _["inputs"]]:
+            token_info[property_name] = c.functions[property_name]().call()
+        token_info["creationBlockNumber"], token_info["creationTime"] = self.get_token_creation_time(addr)
+        try:
+            token_info["WETHPoolV2"] = self.get_univswap_v2_pair(addr)
+            _, token_info["WETHPoolV2CreationTime"] = self.get_token_creation_time(token_info["WETHPoolV2"])
+        except:
+            token_info["WETHPoolV2"] = ""
+            token_info["WETHPoolV2CreationTime"] = "" # note that this traslates to NaT by pd.to_datetime
+        return token_info
