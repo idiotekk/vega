@@ -162,7 +162,7 @@ class ERC20TokenTracker(Web3Portal):
             log_processor=lambda x:x,
             parse_timestamp=False,
         )
-        assert creation_log, "can't find token creation event"
+        assert len(creation_log) > 0, "can't find token creation event"
         return creation_log.iloc[0].to_dict()
 
     def gather_token_info(self, addr: str) -> dict:
@@ -176,6 +176,7 @@ class ERC20TokenTracker(Web3Portal):
                 token_info[property_name] = c.functions[property_name]().call()
             except Exception as e:
                 log.info(f"failed to get {property_name} for {addr}, {e}")
+                token_info[property_name] = ""
 
         # i hate so many try excepts but deployers just don't follow standards
         try:
@@ -186,6 +187,9 @@ class ERC20TokenTracker(Web3Portal):
                 token_info["deployer"] = self.web3.eth.get_transaction(creation_log["transactionHash"])["from"]
         except Exception as e:
             log.info(f"failed to get creation event. error: {e}")
+            token_info["creationBlockNumber"] = ""
+            token_info["creationTime"] = ""
+            token_info["deployer"] = ""
 
         try:
             token_info["WETHPoolV2"] = self.get_univswap_v2_pair(addr)
