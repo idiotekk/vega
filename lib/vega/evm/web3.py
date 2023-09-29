@@ -149,7 +149,7 @@ class ERC20TokenTracker(Web3Portal):
         return self.uniswap_v2_factory().functions["getPair"](lookup("addr")["WETH"], addr).call()
 
     @lru_cache(maxsize=None)
-    def get_token_creation_log(self, addr: str) -> pd.Timestamp:
+    def get_token_creation_log(self, addr: str) -> dict:
         creation_log = self.get_logs(
             stime=pd.to_datetime("20180101").tz_localize("UTC"),
             etime=pd.Timestamp.utcnow(),
@@ -161,9 +161,11 @@ class ERC20TokenTracker(Web3Portal):
                 ]),
             log_processor=lambda x:x,
             parse_timestamp=False,
-        ).iloc[0].to_dict()
-        print(creation_log)
-        return creation_log
+        )
+        if len(creation_log) > 0:
+            return creation_log.iloc[0].to_dict()
+        else:
+            return {}
 
     def gather_token_info(self, addr: str) -> dict:
 
@@ -174,9 +176,10 @@ class ERC20TokenTracker(Web3Portal):
         for property_name in [_["name"] for _ in c.abi if _["type"] == "function" and _["stateMutability"] == "view" and not _["inputs"]]:
             token_info[property_name] = c.functions[property_name]().call()
         creation_log = self.get_token_creation_log(addr)
-        token_info["creationBlockNumber"] = int(creation_log["blockNumber"])
-        token_info["creationTime"] = self.get_timestamp_from_block_number(block_number=int(creation_log["blockNumber"]))
-        token_info["deployer"] = self.web3.eth.get_transaction(creation_log["transactionHash"])["from"]
+        if creation_log:
+            token_info["creationBlockNumber"] = int(creation_log["blockNumber"])
+            token_info["creationTime"] = self.get_timestamp_from_block_number(block_number=int(creation_log["blockNumber"]))
+            token_info["deployer"] = self.web3.eth.get_transaction(creation_log["transactionHash"])["from"]
         try:
             token_info["WETHPoolV2"] = self.get_univswap_v2_pair(addr)
             pool_creation_log = self.get_token_creation_log(token_info["WETHPoolV2"])

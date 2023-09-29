@@ -53,6 +53,7 @@ class SQLiteDB:
         assert not self.table_exists(table_name), f"table {table_name} already exists"
         query = f"""CREATE TABLE {table_name} ({",".join([f"{k} TEXT" for k in columns])},PRIMARY KEY ({",".join(index)}));"""
         self.execute(query)
+        self.con.commit()
         log.info(f"created table {table_name} at {self._path}; index = {index}")
 
     def read(self, query: str, parse_str_columns=True) -> pd.DataFrame:

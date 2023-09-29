@@ -36,15 +36,21 @@ class TokenInfo(Table):
         self._table_name = "token_info"
         self._index = ["addr"]
     
-    def update_token_info(self, addr: str) -> None:
-        addr = self._p.web3.to_checksum_address(addr)
+    def update_token(self, addr: str) -> None:
+        addr = self.tocsaddr(addr)
         token_info = pd.DataFrame(self._p.gather_token_info(addr=addr), index=[0])
-        self._db.write(token_info, index=["addr"], table_name=self._table_name)
+        self.db.write(token_info, index=["addr"], table_name=self.table_name)
+        log.info(f"added {addr} to {self.table_name}")
+    
+    def delete_token(self, addr: str) -> None:
+        self.db.execute(f"DELETE from {self.table_name} where addr = '{addr}'")
+        self.db.con.commit()
+        log.info(f"deleted {addr}")
 
     def touch(self, addr: str) -> None:
         """Touch it."""
         if not self.token_exists(addr):
-            self.update_token_info(addr)
+            self.update_token(addr)
     
     def get_token_info(self, addr: str, touch=True) -> dict:
         if touch is True:

@@ -10,7 +10,7 @@ from pathlib import Path
 from vega import log
 from vega.evm.web3 import Web3Portal
 from vega.evm.web3 import ContractEvent
-from vega.db.sqlite import SQLiteDB
+from vega.apps.tables import TokenInfo, DATABASE_PATH
 from vega.utils import apply_range
 from typing import Callable
 
@@ -42,9 +42,10 @@ if __name__ == "__main__":
     e = get_uniswap_v2_swap_event(p)
 
     db = SQLiteDB()
-    db.connect(os.path.expandvars(f"$HOME/vega/data/dex.db"))
+    db.connect(os.path.expandvars(DATABASE_PATH))
     table_name = "uniswap_v2_swap"
     index_cols = ["blockNumber", "logIndex"]
+    token_info = TokenInfo()
 
     def download_swap_logs(stime: pd.Timestamp, etime: pd.Timestamp) -> pd.DataFrame:
 
