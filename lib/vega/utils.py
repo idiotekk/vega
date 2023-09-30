@@ -29,7 +29,6 @@ def apply_range(*,
                 res.append(func(batch_start, batch_end))
                 break
             except Exception as e:
-                raise e
                 log.error(f"failed with error: {e}")
                 batch_size /= 2
                 if batch_size >= min_batch_size:

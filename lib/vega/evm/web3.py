@@ -63,7 +63,8 @@ class Web3Portal:
         if len(raw_logs) == 0:
             return pd.DataFrame()
         from .utils import flatten_dict
-        processed_logs = [flatten_dict(dict(log_processor(raw_log))) for raw_log in raw_logs]
+        processed_logs = [log_processor(raw_log) for raw_log in raw_logs]
+        processed_logs = [flatten_dict(_) for _ in processed_logs if _] # a backdoor to allow log_processor to give up if can't parse
         df = pd.DataFrame(processed_logs)
         if parse_timestamp:
             df["timestamp"] = self.get_timestamp_from_block_number(df["blockNumber"])

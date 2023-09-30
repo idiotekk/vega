@@ -45,7 +45,7 @@ if __name__ == "__main__":
                 token_info.touch(addr)
 
     if args.bootstrap:
-        stime = pd.to_datetime(token_info.db.read(" SELECT MAX(creationTime) from uniswap_v2_swap").iloc[0, 0])
+        stime = pd.to_datetime(token_info.db.read(f" SELECT MAX(creationTime) from {token_info.table_name}").iloc[0, 0])
         log.info(f"bootsrapping from {stime}")
     else:
         stime = pd.to_datetime(args.stime, utc=True)
