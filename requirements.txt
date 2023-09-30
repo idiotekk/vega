@@ -1,6 +1,7 @@
 # data
 pandas
 numpy
+pymongo
 
 # evm
 web3

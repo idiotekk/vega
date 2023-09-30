@@ -12,13 +12,10 @@ from dash_bootstrap_templates import load_figure_template
 import pandas as pd
 import numpy as np
 from pprint import pprint
+from vega.apps.tables import TokenInfo, event_archive_factory
 
-sys.path.insert(0, "../lib/")
-from vega.dsh.db import CSVDataBase
-
-db = CSVDataBase()
-db.init(os.path.expandvars("$HOME/vega/data/"))
-token_addr_list = [_.replace(".csv", "") for _ in os.listdir(f"{db.root_dir}/wallet/")]
+ti = TokenInfo()
+swaps = event_archive_factory("uniswap_v2_swap")
 
 app = Dash(
     __name__,
@@ -30,10 +27,8 @@ app.layout = html.Div([
         children=" ".join(['Wallet', 'Tracker']),
         style={'textAlign':'center'},
     ),
-    dcc.Dropdown(
-        token_addr_list,
-        token_addr_list[-1],
-        id='dropdown-selection',
+    dcc.Input(
+        id='input-token-addr',
         style={"margin": "3% 0% 3% 0%"},
     ),
     dcc.Graph(
@@ -67,7 +62,7 @@ style={"margin": "10% 20% 10% 20%"},
 
 @callback(
     Output('price-chart', 'figure'),
-    Input('dropdown-selection', 'value')
+    Input('input-token-addr', 'value')
 )
 def update_graph(addr: str) -> go.Figure:
     """
@@ -95,7 +90,7 @@ def update_graph(addr: str) -> go.Figure:
 
 @app.callback(
     [Output("tx-table", "data"), Output('tx-table', 'columns')],
-    Input('dropdown-selection', 'value')
+    Input('input-token-addr', 'value')
 )
 def update_table(token_addr: str):
     # load

@@ -31,3 +31,4 @@ _test*
 venv
 log
 test
+*.ipynb

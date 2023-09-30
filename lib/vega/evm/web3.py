@@ -16,6 +16,16 @@ class Web3Portal:
 
     _web3: Web3
     _scan: Etherscan
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """ Singleton.
+        """
+        if not cls._instance:
+            cls._instance = super(Web3Portal, cls).__new__(
+                                cls, *args, **kwargs)
+            log.info(f"created {cls} instance.")
+        return cls._instance
 
     def init(self):
         """ Connect to mainnet mainnet via infura (let's not be too generic).
@@ -180,6 +190,18 @@ class ERC20TokenTracker(Web3Portal):
                 token_info[property_name] = ""
 
         # i hate so many try excepts but deployers just don't follow standards
+        # try to get these fields
+        optional_fields = [
+            "creationBlockNumber",
+            "creationTime",
+            "deployer",
+            "WETHPoolV2",
+            "WETHPoolV2CreationTime",
+            "WETHPoolV2Token0",
+            "WETHPoolV2Token1",
+        ]
+        for f_ in optional_fields:
+            token_info[f_] = ""
         try:
             creation_log = self.get_token_creation_log(addr)
             if creation_log:
@@ -188,17 +210,15 @@ class ERC20TokenTracker(Web3Portal):
                 token_info["deployer"] = self.web3.eth.get_transaction(creation_log["transactionHash"])["from"]
         except Exception as e:
             log.info(f"failed to get creation event. error: {e}")
-            token_info["creationBlockNumber"] = ""
-            token_info["creationTime"] = ""
-            token_info["deployer"] = ""
 
         try:
             token_info["WETHPoolV2"] = self.get_univswap_v2_pair(addr)
+            pool_contract = self.get_contract(addr=token_info["WETHPoolV2"])
             pool_creation_log = self.get_token_creation_log(token_info["WETHPoolV2"])
             token_info["WETHPoolV2CreationTime"] = self.get_timestamp_from_block_number(block_number=int(pool_creation_log["blockNumber"]))
+            token_info["WETHPoolV2Token0"] = pool_contract.functions["token0"]().call()
+            token_info["WETHPoolV2Token1"] = pool_contract.functions["token1"]().call()
         except Exception as e:
             log.info(f"failed to find WETH Pool V2. Error: {e}")
-            token_info["WETHPoolV2"] = ""
-            token_info["WETHPoolV2CreationTime"] = "" # note that this traslates to NaT by pd.to_datetime
 
         return token_info

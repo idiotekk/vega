@@ -56,7 +56,7 @@ class SQLiteDB:
         self.con.commit()
         log.info(f"created table {table_name} at {self._path}; index = {index}")
 
-    def read(self, query: str, parse_str_columns=True) -> pd.DataFrame:
+    def read_sql(self, query: str, parse_str_columns=True) -> pd.DataFrame:
         log.info(f"querying dataframe from {query}")
         df = pd.read_sql_query(query, self.con)
         if parse_str_columns is True:
@@ -65,7 +65,7 @@ class SQLiteDB:
     
     def read_table(self, table_name: str, parse_str_columns=True) -> pd.DataFrame:
         query = f"SELECT * from {table_name}"
-        return self.read(query, parse_str_columns=parse_str_columns)
+        return self.read_sql(query, parse_str_columns=parse_str_columns)
 
     def delete_table(self, table_name: str) -> bool:
         """ Return True if deleted is done.

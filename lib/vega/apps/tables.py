@@ -1,12 +1,9 @@
 import os
-import sys
-sys.path.insert(0, "../lib")
-import web3
-import vega
+import argparse
 import pandas as pd
 from functools import lru_cache
-from pathlib import Path
 from typing import Callable, Optional, List
+
 from . import log
 from ..evm.web3 import ERC20TokenTracker, Web3Portal, ContractEvent
 from ..evm.utils import lookup
@@ -72,7 +69,7 @@ class TokenInfo(Table):
         if touch is True:
             self.touch(addr)
         addr = self.tocsaddr(addr)
-        res = self._db.read(f"SELECT * from {self._table_name} WHERE addr = '{addr}'")
+        res = self._db.read_sql(f"SELECT * from {self._table_name} WHERE addr = '{addr}'")
         return res.iloc[0].to_dict()
     
     def token_exists(self, addr) -> bool:
@@ -161,12 +158,14 @@ class EventArchive(Table):
                   time_col="timestamp",
                   ):
 
-        stime = pd.to_datetime(token_info.db.read(f" SELECT MAX({time_col}) from {token_info.table_name}").iloc[0, 0])
+        stime = pd.to_datetime(self.db.read_sql(f" SELECT MAX({time_col}) from {token_info.table_name}").iloc[0, 0])
         etime = pd.Timestamp.utcnow()
         self.fetch_range(stime=stime, etime=etime, batch_freq=batch_freq)
 
 
 def event_archive_factory(name: str) -> EventArchive:
+    """Create commonly used archives.
+    """
 
     p = ERC20TokenTracker()
     p.init()
@@ -232,3 +231,16 @@ def event_archive_factory(name: str) -> EventArchive:
         raise ValueError(name)
     
     return ea
+
+
+def event_archive_parser() -> argparse.ArgumentParser:
+    """A parser for common event archive run time parameters.
+    """
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--stime", type=str, help="parsable by pd.to_datetime")
+    parser.add_argument("--etime", type=str, default="20991231", help="parsable by pd.to_datetime")
+    parser.add_argument("--fetch-new", action="store_true")
+
+    return parser
