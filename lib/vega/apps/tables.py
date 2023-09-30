@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable, Optional, List
 from . import log
 from ..evm.web3 import ERC20TokenTracker, Web3Portal, ContractEvent
+from ..evm.utils import lookup
 from ..db.sqlite import SQLiteDB
 from ..utils import apply_range
 
@@ -167,8 +168,19 @@ class EventArchive(Table):
 
 def event_archive_factory(name: str) -> EventArchive:
 
+    p = ERC20TokenTracker()
+    p.init()
     weth = p.get_contract(addr=lookup("addr")["WETH"])
     post_processor = lambda df: df.drop(["blockHash", "address"], axis=1)
+
+    def try_process_log(e):
+        def log_processor(raw_log: dict) -> dict:
+            try:
+                return e.process_log(raw_log)
+            except:
+                return {}
+        return log_processor
+
     if name == "weth_deposit":
         ea = EventArchive(
             table_name=name,
@@ -190,15 +202,30 @@ def event_archive_factory(name: str) -> EventArchive:
     elif name == "token_transfer":
         erc20_transfer_topic = weth._get_event_filter_params(ea.abi)["topics"][0]
         e = weth.events["Transfer"]()
-        def log_processor(raw_log):
-            try:
-                return e.process_log(raw_log)
-            except:
-                return {}
         ea = EventArchive(
             table_name=name,
             filter_params={"topics": [erc20_transfer_topic]},
-            log_processor=log_processor,
+            log_processor=try_process_log(e),
+            post_processor=post_processor,
+        )
+    elif name == "uniswap_v2_swap":
+
+        token_addr = lookup("addr")["BITCOIN"]
+        pool = p.get_univswap_v2_pair(addr=token_addr)
+        abi = p.get_abi(addr=pool)
+        c = p.web3.eth.contract(address=pool, abi=abi)
+        e = c.events["Swap"]()
+        swap_topic = e._get_event_filter_params(e.abi)["topics"][:1]
+
+        def post_processor(df: pd.DataFrame) -> pd.DataFrame:
+            df["amount0"] = df["args_amount0In"] - df["args_amount0Out"]
+            df["amount1"] = df["args_amount1In"] - df["args_amount1Out"]
+            return df.drop(["args_amount0In", "args_amount1In", "args_amount0Out", "args_amount1Out", "blockHash"], axis=1)
+
+        ea = EventArchive(
+            table_name=name,
+            filter_params={"topics": [swap_topic]},
+            log_processor=try_process_log(e),
             post_processor=post_processor,
         )
     else:
