@@ -32,6 +32,16 @@ class Etherscan:
     _base_url: str
     _retry_wait_seconds: float = 1.001 # retry after this seconds
     _max_retries: int = 5
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """ Singleton.
+        """
+        if not cls._instance:
+            cls._instance = super(Etherscan, cls).__new__(
+                                cls, *args, **kwargs)
+            log.info(f"created {cls} instance.")
+        return cls._instance
 
     def __init__(self) -> None:
         api_key_env_var = "ETHERSCAN_API_KEY"

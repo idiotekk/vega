@@ -14,7 +14,7 @@ from .utils import to_int, lookup, addr_to_topic
 
 class Web3Portal:
 
-    _web3: Web3
+    _web3: Web3 = None
     _scan: Etherscan
     _instance = None
 
@@ -30,13 +30,15 @@ class Web3Portal:
     def init(self):
         """ Connect to mainnet mainnet via infura (let's not be too generic).
         """
-
-        base_url = "https://mainnet.infura.io/v3"
-        api_key = os.environ["INFURA_API_KEY"]
-        url = f"{base_url}/{api_key}"
-        self._web3 = Web3(Web3.HTTPProvider(url))
-        log.info(f"connecting to: {url}")
-        assert self._web3.is_connected()
+        if self._web3 is not None and self._web3.is_connected():
+            pass
+        else:
+            base_url = "https://mainnet.infura.io/v3"
+            api_key = os.environ["INFURA_API_KEY"]
+            url = f"{base_url}/{api_key}"
+            self._web3 = Web3(Web3.HTTPProvider(url))
+            log.info(f"connecting to: {url}")
+            assert self._web3.is_connected()
 
         self._scan = Etherscan()
 
@@ -119,7 +121,6 @@ class Web3Portal:
             abi = lookup("abi/erc20")
             return abi
 
-    @lru_cache(maxsize=None)
     def get_timestamp_from_block_number(self, block_number: typing.Union[pd.Series, int]) -> typing.Union[pd.Series, int]:
 
         def block_number_to_ts(bn: int) -> pd.Timestamp:
