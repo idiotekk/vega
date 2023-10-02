@@ -11,6 +11,7 @@ from vega import log
 from vega.evm.web3 import Web3Portal, ERC20TokenTracker
 from vega.evm.web3 import ContractEvent
 from vega.evm.utils import lookup
+from vega.db.mongo import MongoDB
 from vega.apps.tables import TokenInfo, DATABASE_PATH
 from vega.utils import apply_range
 from typing import Callable
@@ -27,7 +28,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     p = ERC20TokenTracker()
     p.init()
-    token_info = TokenInfo()
+    db = MongoDB()
+    db.init()
+    token_info = TokenInfo(db=db)
     e = p.uniswap_v2_factory().events["PairCreated"]()
 
     WETH = lookup("addr")["WETH"]

@@ -7,7 +7,8 @@ from typing import Callable, Optional, List
 from . import log
 from ..evm.web3 import ERC20TokenTracker, Web3Portal, ContractEvent
 from ..evm.utils import lookup
-from ..db.sqlite import SQLiteDB
+from ..db import DataBase
+from ..db.mongo import MongoDB
 from ..utils import apply_range
 
 
@@ -17,13 +18,13 @@ class Table:
 
     _table_name: str
     _p: Web3Portal
-    _db: SQLiteDB
+    _db: DataBase
 
     def reset(self):
         self._db.delete_table(self._table_name)
 
     @property
-    def db(self) -> SQLiteDB:
+    def db(self) -> DataBase:
         return self._db
     
     @property
@@ -38,12 +39,12 @@ class Table:
 
 class TokenInfo(Table):
 
+    _db: DataBase
     _p: ERC20TokenTracker
 
-    def __init__(self):
+    def __init__(self, *, db: DataBase):
 
-        self._db = SQLiteDB()
-        self._db.connect(DATABASE_PATH)
+        self._db = db
         self._p = ERC20TokenTracker()
         self._p.init()
         self._table_name = "token_info"
@@ -52,17 +53,21 @@ class TokenInfo(Table):
     def update_token(self, addr: str) -> None:
         addr = self.tocsaddr(addr)
         token_info = pd.DataFrame(self._p.gather_token_info(addr=addr), index=[0])
-        self.db.write(token_info, index=["addr"], table_name=self.table_name)
+        token_info["totalSupply"] = token_info["totalSupply"].astype(str) # for mongo
+        self.db.write(token_info, index=["addr"], table_name=self.table_name, update=True)
         log.info(f"added {addr} to {self.table_name}")
     
     def delete_token(self, addr: str) -> None:
-        self.db.execute(f"DELETE from {self.table_name} where addr = '{addr}'")
-        self.db.con.commit()
-        log.info(f"deleted {addr}")
+        if isinstance(self.db, MongoDB):
+            self.db.table(self.table_name).delete_one({"addr": addr})
+        else:
+            self.db.execute(f"DELETE from {self.table_name} where addr = '{addr}'")
+            self.db.con.commit()
+            log.info(f"deleted {addr}")
 
     def touch(self, addr: str) -> None:
         """Touch it."""
-        if not self.token_exists(addr):
+        if not self.db.table_exists(self.table_name) or not self.token_exists(addr):
             self.update_token(addr)
     
     def get_token_info(self, addr: str, touch=True) -> dict:
@@ -74,12 +79,15 @@ class TokenInfo(Table):
     
     def token_exists(self, addr) -> bool:
         addr = self.tocsaddr(addr)
-        token_count = self.db.execute(f" SELECT COUNT(*) FROM {self.table_name} WHERE addr = '{addr}' ").fetchone()[0]
-        assert token_count <= 1, f"found multiple tokens with addr {addr}"
-        return token_count > 0
+        if isinstance(self.db, MongoDB):
+            return self.db.table(self.table_name).find_one({"addr": addr}) is not None
+        else:
+            token_count = self.db.execute(f" SELECT COUNT(*) FROM {self.table_name} WHERE addr = '{addr}' ").fetchone()[0]
+            assert token_count <= 1, f"found multiple tokens with addr {addr}"
+            return token_count > 0
         
     @property
-    def db(self) -> SQLiteDB:
+    def db(self) -> DataBase:
         return self._db
     
     @property
@@ -97,6 +105,7 @@ class EventArchive(Table):
     _p: ERC20TokenTracker
 
     def __init__(self, *,
+                 db: DataBase,
                  table_name: str,
                  filter_params: Optional[dict]=None,
                  log_processor: Optional[Callable]=None,
@@ -105,8 +114,7 @@ class EventArchive(Table):
                  index: List[str]=["blockNumber", "logIndex"],
                  ):
 
-        self._db = SQLiteDB()
-        self._db.connect(DATABASE_PATH)
+        self._db = db
         self._p = ERC20TokenTracker()
         self._p.init()
         self._table_name = table_name
@@ -169,6 +177,8 @@ def event_archive_factory(name: str) -> EventArchive:
 
     p = ERC20TokenTracker()
     p.init()
+    db = MongoDB()
+    db.init()
     weth = p.get_contract(addr=lookup("addr")["WETH"])
     post_processor = lambda df: df.drop(["blockHash", "address"], axis=1)
 
@@ -182,18 +192,21 @@ def event_archive_factory(name: str) -> EventArchive:
 
     if name == "weth_deposit":
         ea = EventArchive(
+            db=db,
             table_name=name,
             event=weth.events["Deposit"](),
             post_processor=post_processor,
         )
     elif name == "weth_withdrawal":
         ea = EventArchive(
+            db=db,
             table_name=name,
             event=weth.events["Withdrawal"](),
             post_processor=post_processor,
         )
     elif name == "weth_transfer":
         ea = EventArchive(
+            db=db,
             table_name=name,
             event=weth.events["Transfer"](),
             post_processor=post_processor,
@@ -202,6 +215,7 @@ def event_archive_factory(name: str) -> EventArchive:
         erc20_transfer_topic = weth._get_event_filter_params(ea.abi)["topics"][0]
         e = weth.events["Transfer"]()
         ea = EventArchive(
+            db=db,
             table_name=name,
             filter_params={"topics": [erc20_transfer_topic]},
             log_processor=try_process_log(e),
@@ -222,6 +236,7 @@ def event_archive_factory(name: str) -> EventArchive:
             return df.drop(["args_amount0In", "args_amount1In", "args_amount0Out", "args_amount1Out", "blockHash"], axis=1)
 
         ea = EventArchive(
+            db=db,
             table_name=name,
             filter_params={"topics": [swap_topic]},
             log_processor=try_process_log(e),

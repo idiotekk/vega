@@ -1,23 +1,10 @@
 import pandas as pd
 from pathlib import Path
-from abc import ABC, abstractmethod
 
 from . import log
 
 
-class DataBase(ABC):
-
-    @abstractmethod
-    def init(self):
-        pass
-
-    @abstractmethod
-    def read_table(self, name):
-        pass
-
-
 class CSVDataBase(DataBase):
-
 
     def init(self, root_dir):
         self._root_dir = root_dir

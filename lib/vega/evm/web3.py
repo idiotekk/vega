@@ -16,16 +16,6 @@ class Web3Portal:
 
     _web3: Web3 = None
     _scan: Etherscan
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        """ Singleton.
-        """
-        if not cls._instance:
-            cls._instance = super(Web3Portal, cls).__new__(
-                                cls, *args, **kwargs)
-            log.info(f"created {cls} instance.")
-        return cls._instance
 
     def init(self):
         """ Connect to mainnet mainnet via infura (let's not be too generic).
@@ -183,11 +173,12 @@ class ERC20TokenTracker(Web3Portal):
         token_info = {
             "addr": addr,
         }
-        for property_name in [_["name"] for _ in c.abi if _["type"] == "function" and _["stateMutability"] == "view" and not _["inputs"]]:
+        for property_name in ["name", "symbol", "totalSupply", "decimals"]:
             try:
-                token_info[property_name] = c.functions[property_name]().call()
+                value = c.functions[property_name]().call()
+                token_info[property_name] = value
             except Exception as e:
-                log.info(f"failed to get {property_name} for {addr}, {e}")
+                log.error(f"failed to get {property_name} for {addr}, {e}")
                 token_info[property_name] = ""
 
         # i hate so many try excepts but deployers just don't follow standards
