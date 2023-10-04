@@ -189,9 +189,11 @@ def event_archive_factory(name: str) -> EventArchive:
             except:
                 return {}
         return log_processor
-    def post_process(df: pd.DataFrame) -> pd.DataFrame:
+    def post_process(
+            df: pd.DataFrame,
+            output_cols: List[str]=["src", "dst", "amount", "transactionHash", "blockNumber"],
+            ) -> pd.DataFrame:
         df = df.rename(columns={"args_src": "src", "args_dst": "dst", "args_wad": "amount"})
-        output_cols = ["src", "dst", "amount", "transactionHash", "blockNumber"]
         output_cols = [_ for _ in output_cols if _ in df.columns]
         return df[output_cols].copy()
 
@@ -225,13 +227,17 @@ def event_archive_factory(name: str) -> EventArchive:
         e = weth.events["Transfer"]()
         d.con[name].create_index("src")
         d.con[name].create_index("dst")
+        d.con[name].create_index("address")
         erc20_transfer_topic = e._get_event_filter_params(e.abi)["topics"][0]
         ea = EventArchive(
             d=d,
             table_name=name,
             filter_params={"topics": [erc20_transfer_topic]},
             log_processor=try_process_log(e),
-            post_processor=post_process,
+            post_processor=lambda df:
+                post_process(
+                    df,
+                    output_cols=["address", "src", "dst", "amount", "transactionHash", "blockNumber"]),
         )
     elif name == "uniswap_v2_swap":
 
