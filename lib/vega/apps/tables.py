@@ -136,11 +136,18 @@ class EventArchive(Table):
         self._index = index
 
     def fetch_range(self, *,
-                    stime: pd.Timestamp,
-                    etime: pd.Timestamp,
+                    sblock: Optional[int]=None,
+                    eblock: Optional[int]=None,
+                    stime: Optional[pd.Timestamp]=None,
+                    etime: Optional[pd.Timestamp]=None,
                     batch_freq: str,
                     write: bool=True,
-                    ):
+                    return_df: bool=False,
+                    ) -> Optional[pd.DataFrame]:
+        if sblock:
+            stime = self._p.get_timestamp_from_block_number(sblock)
+        if eblock:
+            etime = self._p.get_timestamp_from_block_number(eblock)
 
         def _fetch_range(stime: pd.Timestamp, etime: pd.Timestamp) -> pd.DataFrame:
             df = self._p.get_logs(
@@ -155,15 +162,20 @@ class EventArchive(Table):
                 df = self._post_process(df)
                 if write:
                     self.d.write(df, table_name=self._table_name, index=self._index)
-                return df
+                if return_df:
+                    return df
         etime = min(pd.to_datetime(etime, utc=True), pd.Timestamp.utcnow())
-        df = pd.concat(
-            apply_range(
+        res = apply_range(
                 func=_fetch_range,
                 start=stime,
                 end=etime,
-                max_batch_size=pd.Timedelta(batch_freq)))
-        return df
+                max_batch_size=pd.Timedelta(batch_freq))
+        if return_df:
+            df = pd.concat(res)
+            return df
+        else:
+            import gc
+            gc.collect()
     
     def fetch_new(self,
                   *,
@@ -174,7 +186,7 @@ class EventArchive(Table):
         """
         #stime = pd.to_datetime(self.d.read_sql(f" SELECT MAX({time_col}) from {token_info.table_name}").iloc[0, 0])
         sblock = int(self.d.con[self.table_name].find().sort(block_number_col, -1).limit(1)[0][block_number_col]) - 1
-        stime = p.get_timestamp_from_block_number(sblock)
+        stime = self._p.get_timestamp_from_block_number(sblock)
         log.info(f"bootstrapping from block {sblock} {stime}")
         etime = pd.Timestamp.utcnow()
         self.fetch_range(stime=stime, etime=etime, batch_freq=batch_freq)
