@@ -32,6 +32,10 @@ class Table:
     def table_name(self) -> str:
         return self._table_name
 
+    @property
+    def table():
+        return self.con[self.table_name]
+
     @lru_cache(maxsize=None)
     def tocsaddr(self, addr) -> str:
         addr = self._p.web3.to_checksum_address(addr)
@@ -164,10 +168,14 @@ class EventArchive(Table):
     def fetch_new(self,
                   *,
                   batch_freq: str,
-                  time_col="timestamp",
+                  block_number_col: str="blockNumber",
                   ):
-
-        stime = pd.to_datetime(self.d.read_sql(f" SELECT MAX({time_col}) from {token_info.table_name}").iloc[0, 0])
+        """Bootstrap from max block in the table.
+        """
+        #stime = pd.to_datetime(self.d.read_sql(f" SELECT MAX({time_col}) from {token_info.table_name}").iloc[0, 0])
+        sblock = int(self.d.con[self.table_name].find().sort(block_number_col, -1).limit(1)[0][block_number_col]) - 1
+        stime = p.get_timestamp_from_block_number(sblock)
+        log.info(f"bootstrapping from block {sblock} {stime}")
         etime = pd.Timestamp.utcnow()
         self.fetch_range(stime=stime, etime=etime, batch_freq=batch_freq)
 

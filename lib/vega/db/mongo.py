@@ -63,7 +63,6 @@ class MongoDB(DataBase):
             ], ordered=False)
             log.info(f"inserted: {len(df)}, to {table_name} (ignored duplicates)")
 
-
     def create_table(self, *,
                      table_name: str,
                      columns: List[str]=[],
