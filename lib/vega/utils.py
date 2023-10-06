@@ -37,3 +37,11 @@ def apply_range(*,
                     raise Exception(f"failed with min_batch_size {min_batch_size} at batch_start = {batch_start}")
         batch_start = batch_end
     return res
+
+
+class Singleton(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
