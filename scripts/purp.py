@@ -42,13 +42,14 @@ app.layout = html.Div([
     ),
     dcc.Input(
         id='input-token-addr',
-        style={"margin": "0% 0% 0% 0%", "width": "100%"},
+        style={"margin": "1% 1% 1% 1%", "width": "80%"},
         placeholder="input trader address",
+        debounce=False,
     ),
     dcc.Graph(
         id='pnl-chart',
         responsive=True,
-        style={"margin": "0% 0% 0% 0%"},
+        style={"margin": "1% 1% 1% 1%"},
     ),
     html.Div(
         DataTable(
@@ -68,7 +69,7 @@ app.layout = html.Div([
                 'color': 'white'
             },
         ),
-        style={"overflow": "scroll", "margin": "0% 0% 0% 0%"},
+        style={"overflow": "scroll", "margin": "1% 1% 1% 1%"},
     )
 ],
 style={"margin": "10% 20% 10% 20%"},
