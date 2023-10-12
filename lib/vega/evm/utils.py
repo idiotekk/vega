@@ -27,7 +27,7 @@ def flatten_dict(d: dict, sep: str=".") -> dict:
     """
     def _flatten_dict_helper( # i really hate this function name
         d: typing.Any,
-        sep: str="_") -> typing.Any:
+        sep: str=sep) -> typing.Any:
 
         if isinstance(d, HexBytes):
             return d.hex()

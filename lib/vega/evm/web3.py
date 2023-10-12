@@ -5,6 +5,7 @@ from web3 import Web3
 from web3.contract.contract import ContractEvent, Contract # for typing
 from functools import lru_cache
 import pandas as pd
+import numpy as np
 
 from ..utils import Singleton
 from . import log
@@ -38,10 +39,10 @@ class Web3Portal(Etherscanner, metaclass=Singleton):
         return self._web3
 
     def get_logs(self, *,
-                 sblock: typing.Optional[int],
-                 eblock: typing.Optional[int],
-                 stime: typing.Optional[pd.Timestamp],
-                 etime: typing.Optional[pd.Timestamp],
+                 sblock: typing.Optional[int]=None,
+                 eblock: typing.Optional[int]=None,
+                 stime: typing.Optional[pd.Timestamp]=None,
+                 etime: typing.Optional[pd.Timestamp]=None,
                  filter_params: dict,
                  log_processor: typing.Callable,
                  parse_timestamp: bool=False,
@@ -50,7 +51,7 @@ class Web3Portal(Etherscanner, metaclass=Singleton):
         Filter logs by `filter_params` between [stime, etime).
         """
 
-        if stime is None:
+        if sblock is None:
             sblock = self.get_block_number_by_timestamp(stime)
         if eblock is None:
             eblock = self.get_block_number_by_timestamp(etime)
@@ -200,3 +201,6 @@ class ERC20TokenTracker(Web3Portal):
         """
         c = self.web3.eth.contract(address=addr, abi=self.get_abi(type="ERC20"))
         return c.functions["decimals"]().call()
+
+    def get_transfer_logs(self):
+        pass

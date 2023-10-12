@@ -8,6 +8,7 @@ cachetools
 web3
 eth-account
 requests
+kwenta
 
 # dashboard
 flask
