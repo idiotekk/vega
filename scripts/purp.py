@@ -42,13 +42,13 @@ app.layout = html.Div([
     ),
     dcc.Input(
         id='input-token-addr',
-        style={"margin": "3% 0% 3% 0%", "width": "100%"},
+        style={"margin": "0% 0% 0% 0%", "width": "100%"},
         placeholder="input trader address",
     ),
     dcc.Graph(
         id='pnl-chart',
         responsive=True,
-        style={"margin": "3% 0% 3% 0%"},
+        style={"margin": "0% 0% 0% 0%"},
     ),
     html.Div(
         DataTable(
@@ -68,7 +68,7 @@ app.layout = html.Div([
                 'color': 'white'
             },
         ),
-        style={"overflow": "scroll", "margin": "3% 0% 3% 0%"},
+        style={"overflow": "scroll", "margin": "0% 0% 0% 0%"},
     )
 ],
 style={"margin": "10% 20% 10% 20%"},
@@ -81,8 +81,9 @@ def get_positions_for_account(account):
     df["time"] = pd.to_datetime(df["timestamp"], unit="s")
     df["open_time"] = pd.to_datetime(df["open_timestamp"], unit="s", utc=True)
     df["close_time"] = pd.to_datetime(df["close_timestamp"], unit="s", utc=True)
-    df["duration"] = (df["close_time"] - df["open_time"]).astype(str)
+    df["duration"] = (df["close_time"].fillna(pd.Timestamp.utcnow()) - df["open_time"]).fillna("").astype(str)
     df["asset"] = df["market_key"].apply(lambda x: x[1:-4])
+    df["status"] = np.where(df["is_open"], "OPEN", "CLOSED")
     df = df.sort_values("timestamp")
     return df
 
@@ -129,13 +130,17 @@ def update_table(addr: str):
     
     df = get_positions_for_account(account=addr)
     df = df.sort_values("timestamp", ascending=False)
-    pprint(df.iloc[-1].to_dict())
+    for c in ["open_time", "close_time"]:
+        df[c] = df[c].dt.strftime("%Y%m%d %H:%M:%S")
+    pprint(df.iloc[0].to_dict())
     # format
     columns = [
-        {"name": "time"},
-        {"name": "pnl_with_fees_paid", "type": "numeric", "format": FormatTemplate.money(2)},
+        {"name": "open_time"},
+        {"name": "close_time"},
         {"name": "asset"},
         {"name": "duration"},
+        {"name": "pnl_with_fees_paid", "type": "numeric", "format": FormatTemplate.money(2)},
+        {"name": "status"},
     ]
     [_.update({"id": _["name"]}) for _ in columns]
     display_cols = [_["name"] for _ in columns]
