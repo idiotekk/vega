@@ -11,6 +11,7 @@ from dash.dash_table.Format import Format, Scheme, Trim
 import plotly.express as px
 import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
+import dash_enterprise_auth as auth
 import pandas as pd
 from kwenta import Kwenta
 import numpy as np
@@ -44,19 +45,27 @@ app.layout = html.Div(
                 'textAlign': 'center',
             },
         ),
-        dcc.Input(
-            id='input-addr',
-            placeholder="input trader address",
-            debounce=True,
+        html.Div(
+            dcc.Input(
+                id='input-addr',
+                placeholder="input trader address",
+                debounce=True,
+                style={
+                    "width": "100%",
+                }
+            ),
             style={
+                "height": "10%",
                 "margin": "1% 1% 1% 1%",
-                "width": "80%",
             },
         ),
-        dcc.Graph(
-            id='pnl-chart',
-            responsive=True,
+        html.Div(
+            dcc.Graph(
+                id='pnl-chart',
+                responsive=True,
+            ),
             style={
+                "height": "30%",
                 "margin": "1% 1% 1% 1%",
             },
         ),
@@ -79,7 +88,7 @@ app.layout = html.Div(
                 },
             ),
             style={
-                "overflow": "scroll",
+                "height": "30%",
                 "margin": "1% 1% 1% 1%",
             },
         ),
@@ -93,6 +102,7 @@ app.layout = html.Div(
     Input('input-addr', 'value')
 )
 def get_positions_for_account(account):
+    print(auth.get_user_data())
     df = asyncio.run(kwenta.queries.positions_for_account(account=account))
     df["asset"] = df["market_key"].apply(lambda x: x[1:-4])
     df["status"] = np.where(df["is_open"], "OPEN", "CLOSED")
