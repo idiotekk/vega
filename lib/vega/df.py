@@ -1,4 +1,5 @@
 import pandas as pd
+from pathlib import Path
 from typing import Optional, Union, List, Callable, Dict, Sequence
 
 __all__ = [
