@@ -8,6 +8,7 @@ from . import log
 
 
 __all__ = [
+    "rel_path",
     "load_json",
     "dump_json",
     "make_sure_parent_dir_exists",

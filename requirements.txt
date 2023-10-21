@@ -8,6 +8,7 @@ cachetools
 web3
 eth-account
 requests
+kwenta
 
 # dashboard
 flask
@@ -16,6 +17,7 @@ dash
 dash-bootstrap-components
 dash-bootstrap-templates
 dash-table
+dash-enterprise-auth
 
 # testing
 ipython

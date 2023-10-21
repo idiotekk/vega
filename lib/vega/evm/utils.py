@@ -2,6 +2,7 @@ import typing
 from hexbytes import HexBytes
 import pandas as pd
 from functools import lru_cache
+from web3 import Web3
 
 from ..io import rel_path, load_json
 
@@ -11,12 +12,13 @@ __all__ = [
     "utcnow",
     "to_utc",
     "to_int",
-    "lookup",
+    "const",
     "addr_to_topic",
+    "csaddr",
 ]
 
 
-def flatten_dict(d: dict, sep: str="_") -> dict:
+def flatten_dict(d: dict, sep: str=".") -> dict:
     """
     Flatten a nested dictionary.
 
@@ -25,7 +27,7 @@ def flatten_dict(d: dict, sep: str="_") -> dict:
     """
     def _flatten_dict_helper( # i really hate this function name
         d: typing.Any,
-        sep: str="_") -> typing.Any:
+        sep: str=sep) -> typing.Any:
 
         if isinstance(d, HexBytes):
             return d.hex()
@@ -70,12 +72,16 @@ def to_int(t: pd.Timestamp, unit="ns") -> int:
 
 
 @lru_cache(maxsize=None)
-def lookup(*path):
+def const(*path):
     """Get json object under ./const/ .
     """
     return load_json(rel_path(__file__, "const", *path) + ".json")
 
 
 @lru_cache(maxsize=None)
-def addr_to_topic(addr):
+def addr_to_topic(addr: str) -> str:
     return addr.replace("0x", "0x" + "0"*24)
+
+
+def csaddr(addr: str) -> str:
+    return Web3.to_checksum_address(addr)
